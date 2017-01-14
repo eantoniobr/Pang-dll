@@ -4,7 +4,7 @@
 =============================================================================================================*/
 #define TITLE_DLL "PANG.DLL For HSReina Emulator"
 #define VERSION_TYPE "For Pangya New Dev group"
-#define	GENERAL_VER	"11012017"  // version of the dll
+#define	GENERAL_VER	"14012017"  // version of the dll
 
 /*=============================================================================================================
 == GENERAL CONFIGURATION 

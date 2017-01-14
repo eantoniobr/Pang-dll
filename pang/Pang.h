@@ -1,7 +1,6 @@
 #ifndef ___PANG_H
 #define ___PANG_H
 
-
 #define DLL_EXPORT EXTERN_C __declspec(dllexport)
 
 typedef unsigned int UInt32;
