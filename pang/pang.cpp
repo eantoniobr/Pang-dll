@@ -19,7 +19,7 @@ void string_copy(unsigned char *string1, unsigned char *string2, unsigned int si
 	}
 }
 
-int Encrypt_Packet(unsigned char *src, unsigned char *tar, int len, unsigned int key)
+int Encrypt_Packet(unsigned char *src, int len, unsigned int key)
 {
 	unsigned char tmp[1024*500];
 
@@ -36,38 +36,34 @@ int Encrypt_Packet(unsigned char *src, unsigned char *tar, int len, unsigned int
 	return 1;
 }
 
-int Decrypt_Packet(unsigned char *src, unsigned char *tar, int len, unsigned int key)
+int Decrypt_Packet(unsigned char *src,  int len, unsigned int key)
 {
-	
-	unsigned char _tmp;
+	//Some Edit By HSREINA
 
-	src[4] = PublicKeyTable[key + src[0] + 1];
+	// Decrypt the 1st byte
+	src[4] = PublicKeyTable[src[0] + key] ^ src[4];
 
-	
-	for (int i = 8; i < 12; i++)
+	// Delete Header part
+	len -= 4;
+	unsigned char *data;
+	data = (unsigned char*)malloc(len);
+	memcpy(&data[0], &src[4], len);
+
+	// Decrypt Data packet
+	for (unsigned long i = 4; i < len; i++)
 	{
-		_tmp = src[i - 4];
-		_tmp ^= src[i];
-		src[i] = _tmp;
+		data[i] = data[i] ^ data[i - 4];
 	}
 
-	
-	for (int i = 8; i < len; i++)
-	{
-		_tmp = src[i]; 
-		_tmp ^= src[i + 4];
-		src[i + 4] = _tmp;
-	}
-
-	src[4] ^= PublicKeyTable[key + src[0]];
-	src[5] ^= 0x00;
-	src[6] ^= 0x00;
-	src[7] ^= 0x00;
-	
-
+	//Delete One byte
+	len -= 1;
+	memmove(&src[0], &data[1], len);
+	free (data);
 
 	return 1;
 }
+
+
 
 // Decrypt pangya client packets
 DLL_EXPORT int _pangya_client_decrypt(char *buffin, int size, char **buffout, int *buffoutSize, char key)
@@ -97,29 +93,28 @@ DLL_EXPORT int _pangya_client_decrypt(char *buffin, int size, char **buffout, in
 	printd(size2.c_str(), 1);
 	printd("\n", 1);
 	printd("Key(HEX) : ", 1);
-	printd(ShowPacketInHex(&key, 2).c_str(), 1);
+	printd(ShowPacketInHex(&key, 1).c_str(), 1);
 	printd("\n", 1);
 	printf("%s\n", hex2ascii(PacketInHex(buffin, size)).c_str());
 	printd("Data (HEX) :", 1);
 	printd(ShowPacketInHex(buffin, size).c_str(), 1);
 	printd("\n", 1);
 	printd("***********************************************\n", 1);
-	key = 0x21;
-
+	
 	int ParseKey =  key << 8 ;
-	Decrypt_Packet(packet_decrypt, packet_decrypt, size, ParseKey);
+
+	//Send to Decrypt Part
+	Decrypt_Packet(packet_decrypt, size, ParseKey);
 
 	
-	
-	//if (packet_decrypt[size - 3] == 0x11)
-	{
-		size = size - 5;
-
-		memcpy(&packet_decrypt[0], &packet_decrypt[5], size);
-	}
 	/*
+	if (packet_decrypt[size - 3] == 0x11)
+	{
+
+	}
 	else
 	{
+		// UNCOMPRESS Part
 		int NewSize = size - 4;
 		unsigned char *tempPacket;
 		tempPacket = (unsigned char*)malloc(NewSize);
@@ -133,7 +128,7 @@ DLL_EXPORT int _pangya_client_decrypt(char *buffin, int size, char **buffout, in
 	*/
 	
 	
-	*buffoutSize = size;
+	*buffoutSize = size-5;
 	*buffout = (char*)malloc(*buffoutSize);
 	memmove(*buffout, &packet_decrypt[0], *buffoutSize);
 
@@ -180,7 +175,7 @@ DLL_EXPORT int _pangya_client_encrypt(char *buffin, int size, char **buffout, in
 	printd(size2.c_str(),2);
 	printd("\n", 2);
 	printd("Key(HEX) : ", 2);
-	printd(ShowPacketInHex(&key, 2).c_str(), 2);
+	printd(ShowPacketInHex(&key, 1).c_str(), 2);
 	printd("\n",2);
 	printd("Data (HEX) :",2);
 	printd(ShowPacketInHex(buffin, size).c_str(), 2);
@@ -235,7 +230,7 @@ DLL_EXPORT int _pangya_client_encrypt(char *buffin, int size, char **buffout, in
 		m_nPandoraKey = PublicKeyTable[ParseKey + packet_encrypt[0] + 4097];
 		memcpy(&packet_encrypt[3], &m_nPandoraKey, 1);	// packet key
 		// encrypt packet
-		Encrypt_Packet(packet_encrypt, NULL, size, ParseKey);
+		Encrypt_Packet(packet_encrypt, size, ParseKey);
 		
 	}
 
@@ -293,7 +288,7 @@ DLL_EXPORT int _pangya_server_encrypt(char *buffin, int size, char **buffout, in
 	printd(size2.c_str(), 4);
 	printd("\n", 4);
 	printd("Key(HEX) : ", 4);
-	printd(ShowPacketInHex(&key, strlen(&key)).c_str(), 4);
+	printd(ShowPacketInHex(&key, 1).c_str(), 4);
 	printd("\n", 4);
 	printd("Data (HEX) :", 4);
 	printd(ShowPacketInHex(buffin, size).c_str(), 4);
@@ -347,7 +342,7 @@ DLL_EXPORT int _pangya_server_encrypt(char *buffin, int size, char **buffout, in
 		memcpy(&packet_encrypt[3], &m_nPandoraKey, 1);	// packet key
 
 		// encrypt packet
-		Encrypt_Packet(packet_encrypt, NULL, size, ParseKey);
+		Encrypt_Packet(packet_encrypt,  size, ParseKey);
 
 	}
 
