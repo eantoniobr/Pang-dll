@@ -63,8 +63,6 @@ int Decrypt_Packet(unsigned char *src,  int len, unsigned int key)
 	return 1;
 }
 
-
-
 // Decrypt pangya client packets
 DLL_EXPORT int _pangya_client_decrypt(char *buffin, int size, char **buffout, int *buffoutSize, char key)
 {
