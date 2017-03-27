@@ -5,11 +5,14 @@
 #include "Pang.h"
 
 
+
 char ConvShortToChar(unsigned short int const num)
 {
 	string str = to_string(num);
 	return str[0];
 }
+
+
 
 void string_copy(unsigned char *string1, unsigned char *string2, unsigned int size)
 {
@@ -21,18 +24,18 @@ void string_copy(unsigned char *string1, unsigned char *string2, unsigned int si
 
 int Encrypt_Packet(unsigned char *src, int len, unsigned int key)
 {
-	unsigned char tmp[1024*500];
-
-	memcpy(tmp, src, len);
+	unsigned char *data;
+	data = (unsigned char*)malloc(len);
+	memcpy(&data[0], &src[0], len);
 	
 	for (int i = 8; i < len; i++)
 	{
-		src[i] ^= tmp[i - 4];
+		data[i] = data[i] ^ src[i - 4];
 	}
-	src[4] ^= PublicKeyTable[key + src[0]];
-	
-	
-
+	data[3] = data[3] ^ PublicKeyTable[key + data[0]];
+	data[4] = data[4] ^ PublicKeyTable[key + data[0]];
+	memmove(&src[0], &data[0], len);
+	free(data);
 	return 1;
 }
 
@@ -40,28 +43,32 @@ int Decrypt_Packet(unsigned char *src,  int len, unsigned int key)
 {
 	//Some Edit By HSREINA
 
-	// Decrypt the 1st byte
-	src[4] = PublicKeyTable[src[0] + key] ^ src[4];
-
-	// Delete Header part
-	len -= 4;
-	unsigned char *data;
-	data = (unsigned char*)malloc(len);
-	memcpy(&data[0], &src[4], len);
-
-	// Decrypt Data packet
-	for (unsigned long i = 4; i < len; i++)
+	if (len > 4)
 	{
-		data[i] = data[i] ^ data[i - 4];
+		// Decrypt the 1st byte
+		src[4] = PublicKeyTable[src[0] + key] ^ src[4];
+
+		// Delete Header part
+		len -= 4;
+		unsigned char *data;
+		data = (unsigned char*)malloc(len);
+		memcpy(&data[0], &src[4], len);
+
+		// Decrypt Data packet
+		for (unsigned long i = 4; i < len; i++)
+		{
+			data[i] = data[i] ^ data[i - 4];
+		}
+
+		//Delete One byte
+		len -= 1;
+		memmove(&src[0], &data[1], len);
+		free(data);
 	}
-
-	//Delete One byte
-	len -= 1;
-	memmove(&src[0], &data[1], len);
-	free (data);
-
 	return 1;
 }
+
+
 
 // Decrypt pangya client packets
 DLL_EXPORT int _pangya_client_decrypt(char *buffin, int size, char **buffout, int *buffoutSize, char key)
@@ -100,35 +107,37 @@ DLL_EXPORT int _pangya_client_decrypt(char *buffin, int size, char **buffout, in
 	printd("***********************************************\n", 1);
 	
 	int ParseKey =  key << 8 ;
-
-	//Send to Decrypt Part
-	Decrypt_Packet(packet_decrypt, size, ParseKey);
-
-	
-	/*
-	if (packet_decrypt[size - 3] == 0x11)
+	if (size > 4)
 	{
+		//Send to Decrypt Part
+		Decrypt_Packet(packet_decrypt, size, ParseKey);
+		/*
 
-	}
-	else
-	{
+
 		// UNCOMPRESS Part
-		int NewSize = size - 4;
+		int NewSize = size;
 		unsigned char *tempPacket;
 		tempPacket = (unsigned char*)malloc(NewSize);
-		memcpy(tempPacket, (char*)packet_decrypt[4], NewSize);
+		memcpy(tempPacket, (char*)packet_decrypt[0], NewSize);
 		CCompressionPacket CompressionPacket;
 		int NewSize2 = CompressionPacket.Decompress(tempPacket, NewSize);
 		unsigned char *tempPacket2 = CompressionPacket.GetNewBuffer();
 		memcpy(&packet_decrypt[0], &tempPacket2[0], NewSize2);
 		size = NewSize2;
+		*/
+
+
+
+		*buffoutSize = size - 5;
+		*buffout = (char*)malloc(*buffoutSize);
+		memmove(*buffout, &packet_decrypt[0], *buffoutSize);
 	}
-	*/
-	
-	
-	*buffoutSize = size-5;
-	*buffout = (char*)malloc(*buffoutSize);
-	memmove(*buffout, &packet_decrypt[0], *buffoutSize);
+	else
+	{
+		*buffoutSize = size;
+		*buffout = (char*)malloc(*buffoutSize);
+		memmove(*buffout, &packet_decrypt[0], *buffoutSize);
+	}
 
 	// work finish here
 
@@ -173,7 +182,7 @@ DLL_EXPORT int _pangya_client_encrypt(char *buffin, int size, char **buffout, in
 	printd(size2.c_str(),2);
 	printd("\n", 2);
 	printd("Key(HEX) : ", 2);
-	printd(ShowPacketInHex(&key, 1).c_str(), 2);
+	printd(ShowPacketInHex(&key, 2).c_str(), 2);
 	printd("\n",2);
 	printd("Data (HEX) :",2);
 	printd(ShowPacketInHex(buffin, size).c_str(), 2);
@@ -184,54 +193,48 @@ DLL_EXPORT int _pangya_client_encrypt(char *buffin, int size, char **buffout, in
 	printd("\n", 2);
 	printd("***********************************************\n", 2);
 
-	memmove(&packet_encrypt[5], &packet_encrypt[0],size);
-	memset(packet_encrypt, 0, 5);
-
-	int ParseKey = key << 8;
-
-	/*
-	if (key != -1)
+	if (size > 5)
 	{
+
+		memmove(&packet_encrypt[5], &packet_encrypt[0], size);
+		memset(packet_encrypt, 0x00, 4);
+
+		int ParseKey = key << 8;
+
+		
+		/*
 		CCompressionPacket CompressPacket;
 
 		if (CompressPacket.Compress(&packet_encrypt[4], size) == 1)
-			printf("Packet compress failed!\n");
+			printf("packet compress failed!");
 
-		if (size >= CompressPacket.GetNewSize())
+		if (CompressPacket.GetNewBuffer() && CompressPacket.GetNewSize())
 		{
 			size = CompressPacket.GetNewSize();
 			memcpy(&packet_encrypt[4], CompressPacket.GetNewBuffer(), size);
 		}
 		else
 		{
-			printf("Uncompressable packet\n");
-
-			size = size + 3;
-			memcpy(&packet_encrypt[size-3], "\x11,\x00,\x00", 3);
-			packet_encrypt[size - 2] = 0x11;
-			packet_encrypt[size - 1] = 0x00;
-			packet_encrypt[size] = 0x00;
+			printf("Failed to compress the Packet!!!");
 		}
-	}
-	*/
-	BYTE m_nPandoraKey;
-	BYTE pNum = 0x6d;//rand() % 256; 
-
-	INT pSize = size + 1;
-	size += 5;
-	// add header
-	
-	memcpy(&packet_encrypt[0], (int*)&pNum, 1);			// packet num
-	memcpy(&packet_encrypt[1], (int*)&pSize, 2);		// packet size
-	if (key != -1)
-	{
-		m_nPandoraKey = PublicKeyTable[ParseKey + packet_encrypt[0] + 4097];
-		memcpy(&packet_encrypt[3], &m_nPandoraKey, 1);	// packet key
-		// encrypt packet
-		Encrypt_Packet(packet_encrypt, size, ParseKey);
 		
-	}
+		*/
+		BYTE m_nMagicKey;
+		BYTE pNum = rand() % 256;//0x6d
+		int PSize = size + 1;
+		size += 5;
 
+
+		// add header
+		memcpy(&packet_encrypt[0], &pNum, 1);			// packet RandomNumber
+		memcpy(&packet_encrypt[1], &PSize, 2);			// packet size
+
+		m_nMagicKey = PublicKeyTable[ParseKey + packet_encrypt[0] + 4097]; // 0xcc;
+		memcpy(&packet_encrypt[3], &m_nMagicKey, 1);	// packet Magickey
+
+		Encrypt_Packet(packet_encrypt, size, ParseKey); // encrypt packet
+
+	}
 
 	*buffoutSize = size;
 	*buffout = (char*)malloc(*buffoutSize);
@@ -295,54 +298,44 @@ DLL_EXPORT int _pangya_server_encrypt(char *buffin, int size, char **buffout, in
 	printd("***********************************************\n", 4);
 
 
-	memmove(&packet_encrypt[4], &packet_encrypt[0], size);
-	memset(packet_encrypt, 0, 4);
+		memmove(&packet_encrypt[5], &packet_encrypt[0], size);
+		memset(packet_encrypt, 0, 5);
 
-	int ParseKey = key << 8;
-	
-	if (key != -1)
-	{
-		CCompressionPacket CompressPacket;
-
-		if (CompressPacket.Compress(&packet_encrypt[4], size) == 1)
-			printf("packet compress failed!");
-
-		if (CompressPacket.GetNewBuffer() && CompressPacket.GetNewSize())
+		int ParseKey = key << 8;
+		/*
+		if (key != -1)
 		{
-			size = CompressPacket.GetNewSize();
-			memcpy(&packet_encrypt[4], CompressPacket.GetNewBuffer(), size);
+			CCompressionPacket CompressPacket;
+
+			if (CompressPacket.Compress(&packet_encrypt[4], size) == 1)
+				printf("packet compress failed!");
+
+			if (CompressPacket.GetNewBuffer() && CompressPacket.GetNewSize())
+			{
+				size = CompressPacket.GetNewSize();
+				memcpy(&packet_encrypt[4], CompressPacket.GetNewBuffer(), size);
+			}
+			else
+			{
+				printf("Failed to compress the Packet!!!");	
+			}
 		}
-		else
-		{
-			printf("Failed to compress the Packet!!!");
-
-			size = size + 3;
-			memcpy(&packet_encrypt[size - 3], "\x11,\x00,\x00", 3);
-			packet_encrypt[size - 2] = 0x11;
-			packet_encrypt[size - 1] = 0x00;
-			packet_encrypt[size] = 0x00;
-
-		}
-	}
-	
-	BYTE m_nPandoraKey;
-	BYTE pNum = 0x6d;//rand() % 256; 
+		*/
+		BYTE m_nMagicKey;
+		BYTE pNum = rand() % 256;//0x6d
+		int PSize = size + 1;
+		size += 4;
 
 
-	INT pSize = size + 1;
-	size += 5;
-	// add header
-	memcpy(&packet_encrypt[0], (int*)&pNum, 1);			// packet num
-	memcpy(&packet_encrypt[1], (int*)&pSize, 2);		// packet size
-	if (key != -1)
-	{
-		m_nPandoraKey = PublicKeyTable[key + packet_encrypt[0] + 1];
-		memcpy(&packet_encrypt[3], &m_nPandoraKey, 1);	// packet key
+		// add header
+		memcpy(&packet_encrypt[0], &pNum, 1);			// packet RandomNumber
+		memcpy(&packet_encrypt[1], &PSize, 2);			// packet size
 
-		// encrypt packet
-		Encrypt_Packet(packet_encrypt,  size, ParseKey);
+		m_nMagicKey = PublicKeyTable[ParseKey + packet_encrypt[0] + 4097]; // 0xcc;
+		memcpy(&packet_encrypt[3], &m_nMagicKey, 1);	// packet Magickey
 
-	}
+		Encrypt_Packet(packet_encrypt, size, ParseKey); // encrypt packet
+
 
 	*buffoutSize = size;
 	*buffout = (char*)malloc(*buffoutSize);

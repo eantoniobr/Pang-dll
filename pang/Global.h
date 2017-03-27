@@ -28,6 +28,7 @@
 #include <string>
 #include <time.h>
 #include <fstream>
+#include <vector>
 
 using namespace std;
 #include "logger.h"

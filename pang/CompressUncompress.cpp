@@ -3,14 +3,14 @@
 
 CCompressionPacket::CCompressionPacket()
 {
-	m_Buffer = new BYTE[1024*35];
+	m_Buffer = new BYTE[30*1024];
 	Init();
 }
 
 void CCompressionPacket::Init()
 {
 	
-	//__lzo_init_v2(MINILZO_VERSION, 2, 4, 4, 4, 4, 4, 4, 4, 24);
+	__lzo_init_v2(MINILZO_VERSION, 2, 4, 4, 4, 4, 4, 4, 4, 24);
 	m_bLzoUsed = false;
 }
 
@@ -66,30 +66,27 @@ int CCompressionPacket::Decompress(const unsigned char* pSrc, int srcSize)
 
 	if (!m_bLzoUsed)
 	{
-		m_bLzoUsed = true;
-		int r;
+		lzo_uint out_len;
 		lzo_uint in_len = srcSize;
-		lzo_uint new_len;
-		BYTE wrkmem[LZO1X_1_MEM_COMPRESS];
+		int iRet;
 
-		memset(m_Buffer, 0, 30 * 1024);
-		r = lzo1x_decompress(pSrc, in_len, m_Buffer, &new_len, wrkmem);
+		iRet = lzo1x_decompress(pSrc, in_len, m_Buffer, &out_len, NULL);
 
-		m_iSize = new_len;
-
-		if (r != LZO_E_OK)
+		m_iSize = out_len;
+		if (iRet != LZO_E_OK)
 		{
-			printf("Failed to decompress the buffer - Error %i\n", r);
-			return 0;
+			printf("Failed to decompress the buffer!!!\n");
+			return 2;
 		}
 
-		return (unsigned long)new_len;
+		return out_len;
 	}
 	else
 	{
 		printf("Buffer lzo allready used !\n");
 		return 0;
 	}
+
 }
 
 unsigned char* CCompressionPacket::GetNewBuffer()
