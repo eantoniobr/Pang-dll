@@ -11,7 +11,7 @@
 =============================================================================================================*/
 // 1 --> activate
 // 0 --> OFF
-#define __USE_CONSOLE  1 // if is define -> show the console
+#define __USE_CONSOLE  0 // if is define -> show the console
 #define __USE_LOGGING  1 // if is define -> Logging to the file
 
 #if __USE_LOGGING > 0

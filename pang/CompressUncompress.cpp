@@ -70,8 +70,10 @@ int CCompressionPacket::Decompress(const unsigned char* pSrc, int srcSize)
 		lzo_uint in_len = srcSize;
 		int iRet;
 
-		iRet = lzo1x_decompress(pSrc, in_len, m_Buffer, &out_len, NULL);
-
+		memset(m_Buffer, 0, 30 * 1024);
+		printf("Begin Decompress\n");
+		iRet = lzo1x_decompress((const unsigned char *)pSrc, in_len, m_Buffer, &out_len, NULL);
+		printf("Decompress retrun %i\n", iRet);
 		m_iSize = out_len;
 		if (iRet != LZO_E_OK)
 		{
