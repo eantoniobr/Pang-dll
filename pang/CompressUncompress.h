@@ -1,7 +1,6 @@
 #ifndef __COMPRESSUNCOMPRESS_H__
 #define __COMPRESSUNCOMPRESS_H__
 
-
 class CCompressionPacket
 {
 public:
@@ -19,10 +18,10 @@ private:
 	int Max(int a, int b);
 
 private:
+
 	BYTE *m_Buffer;				
-	bool m_bLzoUsed;	
 	int m_bInitialized;	
-	int m_iSize;
+	unsigned int m_iSize;
 };
 
 #endif // __COMPRESSUNCOMPRESS_H__

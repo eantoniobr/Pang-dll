@@ -26,7 +26,7 @@ void CloseLogger()
 	Call.CloseLogger();
 }
 
-string ShowPacketInHex(char *packet_buffer, int size)
+string ShowPacketInHex(unsigned char *packet_buffer, int size)
 {
 	char const hex[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 
@@ -41,7 +41,7 @@ string ShowPacketInHex(char *packet_buffer, int size)
 	return returndata;
 }
 
-string PacketInHex(char *packet_buffer, int size)
+string PacketInHex(unsigned char *packet_buffer, int size)
 {
 	char const hex[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 
@@ -192,7 +192,8 @@ void Logger::printd(const char * _Format, int typelog)
 #endif
 
 #if __USE_CONSOLE > 0
-	printf(_Format); // print to the console
+	puts(_Format);
+	//printf(_Format); // print to the console
 #endif
 }
 

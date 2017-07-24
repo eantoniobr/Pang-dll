@@ -28,9 +28,9 @@ void OpenLogger();
 void CloseLogger();
 string GetDateTime();
 string GetTime();
-string ShowPacketInHex(char *packet_buffer, int size);
+string ShowPacketInHex(unsigned char *packet_buffer, int size);
 unsigned char hexval(unsigned char c);
 string hex2ascii(const string& in);
-string PacketInHex(char *packet_buffer, int size);
+string PacketInHex(unsigned char *packet_buffer, int size);
 
 #endif
